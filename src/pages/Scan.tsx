@@ -5,7 +5,7 @@ import { FileText, ImagePlus, X } from 'lucide-react'
 import TopBar from '../components/TopBar'
 import { extractTextWithTextract, uploadInvoice } from '../aws'
 import { extractTextFromImages } from '../ocr'
-import { purchaseFromInvoice } from '../invoice'
+import { isReturnDocument, purchaseFromInvoice } from '../invoice'
 import { usePurchases } from '../context/PurchaseContext'
 
 export default function Scan() {
@@ -59,6 +59,16 @@ export default function Scan() {
       ])
 
       setProgress('Preparing your purchases…')
+      const returnDocuments = extractedText
+        .map((text, index) => isReturnDocument(text) ? files[index].name : undefined)
+        .filter((name): name is string => Boolean(name))
+
+      if (returnDocuments.length) {
+        setProcessing(false)
+        alert(`${returnDocuments.join(', ')} looks like a return or credit-note document, not an original purchase invoice. Remove it and upload the original purchase invoice instead.`)
+        return
+      }
+
       const purchases = files.map((file, index) => purchaseFromInvoice(file, extractedText[index], index))
       addPurchases(purchases)
       previews.forEach(URL.revokeObjectURL)

@@ -13,13 +13,6 @@ function linesFrom(text: string): string[] {
     .filter(Boolean)
 }
 
-function cleanFileName(file: File): string {
-  return file.name
-    .replace(/\.[^/.]+$/, '')
-    .replace(/[-_]/g, ' ')
-    .trim()
-}
-
 function isPriceLine(line: string): boolean {
   return /^\s*(?:₹|Rs\.?|INR|Z)?\s*[\d,]+(?:\.\d{1,2})?\s*$/.test(
     line
@@ -28,183 +21,57 @@ function isPriceLine(line: string): boolean {
 
 function cleanProductName(value: string): string {
   const cleaned = value
+    .replace(/^\s*\d{1,3}\s+/, '')
     .replace(/^item\s*[:\-]?\s*/i, '')
     .replace(/^product\s*[:\-]?\s*/i, '')
     .replace(/^description\s*[:\-]?\s*/i, '')
+    .replace(/\b(?:colour|color|model|hsn|serial\s*no|sku|size)\s*[:\-].*$/i, '')
+    .replace(/\bshipping\s+charges?\b.*$/i, '')
+    .replace(/(?:₹|â‚¹|Rs\.?|INR)\s*[\d,]+(?:\.\d{1,2})?.*$/i, '')
     .replace(/\s+/g, ' ')
     .trim()
 
   // OCR often merges invoice table columns into the product text. Keep text
   // through the actual product type and drop the trailing price columns.
-  const typeMatch = cleaned.match(/\b(headphones?|earphones?|smartwatch|laptop|tablet|speaker|camera|keyboard|mouse|charger|shoes?|shirt|bag)\b/i)
+  const typeMatch = cleaned.match(/\b(headphones?|earphones?|earbuds?|smartwatch|laptop|tablet|speaker|camera|keyboard|mouse|charger|shoes?|shirts?|dress|kurta|jeans|bag|watch|phone|mobile)\b/i)
   return typeMatch ? cleaned.slice(0, typeMatch.index! + typeMatch[0].length).trim() : cleaned
+}
+
+function looksLikeProduct(line: string): boolean {
+  if (ignoredLine.test(line) || isPriceLine(line)) return false
+  if (/^(?:sl\.?\s*no|qty|unit\s*price|net\s*amount|tax\s*(?:rate|type|amount)|total\s*amount|shipping\s*charges?|colour|color|model|hsn|serial\s*no|sku|size)\b/i.test(line)) return false
+  if (/\b(?:billing|shipping)\s+address\b|\b(?:order|invoice)\s+(?:number|date|details)\b|amount\s+in\s+words|authori[sz]ed\s+signatory/i.test(line)) return false
+  if (line.replace(/[^A-Za-z]/g, '').length < 5) return false
+  if (/\b(?:earbuds?|earphones?|headphones?|smartwatch|laptop|tablet|speaker|camera|keyboard|mouse|charger|shoes?|shirts?|dress|kurta|jeans|bag|watch|phone|mobile)\b/i.test(line)) return true
+  return /[A-Za-z]{3,}/.test(line) && !/^(?:total|tax|igst|cgst|sgst|discount|amount|payment|return|warranty)\b/i.test(line)
 }
 
 /* ---------------- PRODUCT ---------------- */
 
 function productFrom(
   lines: string[],
-  file: File
 ): string {
+  const descriptionIndex = lines.findIndex((line) => /\bdescription\b/i.test(line))
+  const tableEnd = (start: number) => lines.findIndex((line, index) => index > start && /^(?:total|amount\s+in\s+words|offers\s+applied|payment\s+information)\b/i.test(line))
+  const end = descriptionIndex >= 0 ? tableEnd(descriptionIndex) : -1
+  const candidates = descriptionIndex >= 0
+    ? lines.slice(descriptionIndex + 1, end > descriptionIndex ? end : descriptionIndex + 18)
+    : lines
 
-  /*
-   * Your Flipkart OCR looks like:
-   *
-   * tem Product Description Qty Unit Price...
-   *
-   * So we search for "Product Description"
-   * inside the line instead of requiring
-   * the entire line to equal it.
-   */
+  const products = candidates
+    .filter(looksLikeProduct)
+    .map(cleanProductName)
+    .filter((product) => product.length >= 4)
 
-  const descriptionIndex =
-    lines.findIndex((line) =>
-      /product\s+description/i.test(line)
-    )
-
-  if (descriptionIndex >= 0) {
-
-    const candidates =
-      lines.slice(
-        descriptionIndex + 1,
-        descriptionIndex + 15
-      )
-
-    for (
-      let i = 0;
-      i < candidates.length;
-      i++
-    ) {
-
-      const line =
-        candidates[i]
-
-      if (!line) continue
-
-      if (ignoredLine.test(line)) {
-        continue
-      }
-
-      if (isPriceLine(line)) {
-        continue
-      }
-
-      if (
-        /^(qty|quantity|unit price|discount|taxable value|igst|cgst|sgst|total amount)$/i.test(
-          line
-        )
-      ) {
-        continue
-      }
-
-      /*
-       * Strong product indicators.
-       */
-      if (
-        /noise\s+colorfit/i.test(line) ||
-        /smartwatch/i.test(line) ||
-        /headphone/i.test(line) ||
-        /earphone/i.test(line) ||
-        /laptop/i.test(line) ||
-        /tablet/i.test(line) ||
-        /speaker/i.test(line) ||
-        /camera/i.test(line)
-      ) {
-
-        let product =
-          line
-
-        /*
-         * Example:
-         *
-         * Noise ColorFit Pulse 2 Max
-         * Smartwatch
-         *
-         * Join them.
-         */
-        const nextLine =
-          candidates[i + 1]
-
-        if (
-          nextLine &&
-          !ignoredLine.test(nextLine) &&
-          !isPriceLine(nextLine) &&
-          /smartwatch|headphone|earphone|laptop|tablet|speaker|camera/i.test(
-            nextLine
-          )
-        ) {
-          product +=
-            ` ${nextLine}`
-        }
-
-        return cleanProductName(product)
-      }
-    }
+  if (products.length > 1) {
+    return `${products.length} items — review receipt`
   }
 
-  /*
-   * Fallback search.
-   *
-   * IMPORTANT:
-   * Never interpret a phone number as a product.
-   */
-  for (
-    let i = 0;
-    i < lines.length;
-    i++
-  ) {
+  if (products[0]) return products[0]
 
-    const line =
-      lines[i]
-
-    if (ignoredLine.test(line)) {
-      continue
-    }
-
-    if (isPriceLine(line)) {
-      continue
-    }
-
-    if (/phone\s*:/i.test(line)) {
-      continue
-    }
-
-    if (/\b\d{10}\b/.test(line)) {
-      continue
-    }
-
-    if (
-      /smartwatch|headphone|earphone|laptop|tablet|speaker|camera/i.test(
-        line
-      )
-    ) {
-
-      let product =
-        line
-
-      const nextLine =
-        lines[i + 1]
-
-      if (
-        nextLine &&
-        !ignoredLine.test(nextLine) &&
-        !isPriceLine(nextLine) &&
-        /smartwatch|headphone|earphone|laptop|tablet|speaker|camera/i.test(
-          nextLine
-        )
-      ) {
-        product +=
-          ` ${nextLine}`
-      }
-
-      return cleanProductName(product)
-    }
-  }
-
-  return (
-    cleanFileName(file) ||
-    'New purchase'
-  )
+  // Do not pretend the uploaded filename is a product. A review state is
+  // safer than a confident but wrong purchase record.
+  return 'Product needs review'
 }
 
 /* ---------------- NUMBER ---------------- */
@@ -241,19 +108,6 @@ function amountFrom(
   lines: string[],
   product: string,
 ): number {
-
-  // On compact invoices, OCR commonly combines a product and all table
-  // columns into one line. The last decimal/currency value is the line total.
-  const productRow = lines.find((line) => {
-    const keyword = product.match(/headphones?|earphones?|smartwatch|laptop|tablet|speaker|camera/i)?.[0]
-    return Boolean(keyword && new RegExp(keyword, 'i').test(line))
-  })
-  if (productRow) {
-    const rowValues = [...productRow.matchAll(/(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2})/gi)]
-      .map((match) => numberFrom(match[1]))
-      .filter((value) => value >= 50)
-    if (rowValues.length) return rowValues[rowValues.length - 1]
-  }
 
   /*
    * PRIORITY 1:
@@ -386,10 +240,30 @@ function amountFrom(
     )
 
   if (orderTotal?.[1]) {
+    const amount = numberFrom(orderTotal[1])
+    if (amount > 0) return amount
+  }
 
-    return numberFrom(
-      orderTotal[1]
-    )
+  // GST invoices often use a plain "TOTAL" row. The last money value in that
+  // row is the invoice total, and is safer than an individual item-row value.
+  const totalIndex = lines.findIndex((line) => /^(?:grand\s+|order\s+)?total\s*[:\-]?/i.test(line))
+  if (totalIndex >= 0) {
+    const totalText = lines.slice(totalIndex, totalIndex + 3).join(' ')
+    const rowValues = [...totalText.matchAll(/(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2})/g)]
+      .map((match) => numberFrom(match[1]))
+      .filter((value) => value > 0)
+    if (rowValues.length) return rowValues[rowValues.length - 1]
+  }
+
+  // Compact OCR can merge a product and all table columns into one line. Use
+  // that line only after invoice-total labels were checked.
+  const productKeyword = product.match(/headphones?|earphones?|earbuds?|smartwatch|laptop|tablet|speaker|camera|shirts?|dress|kurta|jeans|bag|watch|phone|mobile/i)?.[0]
+  const productRow = lines.find((line) => Boolean(productKeyword && new RegExp(productKeyword, 'i').test(line)))
+  if (productRow) {
+    const rowValues = [...productRow.matchAll(/(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2})/gi)]
+      .map((match) => numberFrom(match[1]))
+      .filter((value) => value >= 50)
+    if (rowValues.length) return rowValues[rowValues.length - 1]
   }
 
   /*
@@ -469,12 +343,12 @@ function parseDate(
   }
 
   /*
-   * 07/09/2026
+   * 07/09/2026 or 28.10.2019
    */
 
   const numericDate =
     cleaned.match(
-      /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/
+      /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/
     )
 
   if (numericDate) {
@@ -543,6 +417,15 @@ function dateFrom(
     if (parsed) {
       return parsed
     }
+  }
+
+  const numericOrderDate = text.match(
+    /order\s*date\s*[:\-]?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4})/i,
+  )
+
+  if (numericOrderDate?.[1]) {
+    const parsed = parseDate(numericOrderDate[1])
+    if (parsed) return parsed
   }
 
   /*
@@ -616,7 +499,7 @@ function dateFrom(
 
   const numericDates = [
     ...text.matchAll(
-      /\b(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/g
+      /\b(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4})\b/g
     ),
   ]
 
@@ -770,6 +653,10 @@ function orderIdFrom(
   )
 }
 
+export function isReturnDocument(text: string): boolean {
+  return /\b(?:purchase\s+return\s+invoice|return\s+(?:invoice|credit\s+note)|credit\s+note)\b/i.test(text)
+}
+
 /* ---------------- MAIN PARSER ---------------- */
 
 export function purchaseFromInvoice(
@@ -812,7 +699,6 @@ export function purchaseFromInvoice(
   const product =
     productFrom(
       lines,
-      file
     )
 
   const amount =
