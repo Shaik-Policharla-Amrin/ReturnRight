@@ -1,4 +1,5 @@
 import type { Purchase } from './types'
+import { getReturnStatus } from './utils/deadline'
 
 const ignoredLine =
   /^(invoice|tax invoice|billing address|shipping address|sold by|shipped by|order id|order number|order date|invoice no|invoice number|invoice date|gstin|pan|hsn|qty|quantity|description|amount|total|subtotal|tax|cgst|sgst|igst|payment|customer|place of supply|place of delivery|original for recipient)$/i
@@ -839,6 +840,15 @@ export function purchaseFromInvoice(
     }
   )
 
+  const returnDeadline =
+    policyDays
+      ? formatDate(deadline)
+      : 'Policy needs review'
+
+  const returnStatus = policyDays
+    ? getReturnStatus(returnDeadline)
+    : undefined
+
   return {
 
     id:
@@ -856,23 +866,15 @@ export function purchaseFromInvoice(
         purchaseDate
       ),
 
-    returnDeadline:
-      policyDays
-        ? formatDate(
-            deadline
-          )
-        : 'Policy needs review',
+    returnDeadline,
 
     daysLeft:
-      policyDays ?? 0,
+      returnStatus?.daysLeft ?? 0,
 
     warrantyMonths,
 
     status:
-      policyDays &&
-      policyDays <= 14
-        ? 'soon'
-        : 'safe',
+      returnStatus?.status ?? 'safe',
 
     needsPolicyReview:
       !policyDays,

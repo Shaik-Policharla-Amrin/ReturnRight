@@ -9,6 +9,7 @@ import {
 import { useAuth } from 'react-oidc-context'
 import type { Purchase } from '../types'
 import { seedPurchases } from '../data/seed'
+import { getReturnStatus } from '../utils/deadline'
 
 interface PurchaseContextValue {
   purchases: Purchase[]
@@ -24,6 +25,16 @@ interface PurchaseContextValue {
 const PurchaseContext = createContext<PurchaseContextValue | null>(null)
 
 const API_URL = import.meta.env.VITE_API_URL as string
+
+function normalizePurchase(purchase: Purchase): Purchase {
+  if (purchase.needsPolicyReview) return purchase
+  const currentStatus = getReturnStatus(purchase.returnDeadline)
+  return currentStatus ? { ...purchase, ...currentStatus } : purchase
+}
+
+function normalizePurchases(purchases: Purchase[]): Purchase[] {
+  return purchases.map(normalizePurchase)
+}
 
 export function PurchaseProvider({
   children,
@@ -44,13 +55,13 @@ export function PurchaseProvider({
     const saved = localStorage.getItem('returnright-purchases')
 
     if (!saved) {
-      return seedPurchases
+      return normalizePurchases(seedPurchases)
     }
 
     try {
-      return JSON.parse(saved) as Purchase[]
+      return normalizePurchases(JSON.parse(saved) as Purchase[])
     } catch {
-      return seedPurchases
+      return normalizePurchases(seedPurchases)
     }
   })
 
@@ -59,11 +70,13 @@ export function PurchaseProvider({
   // --------------------------------------------------
 
   function persistLocal(next: Purchase[]) {
-    setPurchases(next)
+    const normalized = normalizePurchases(next)
+
+    setPurchases(normalized)
 
     localStorage.setItem(
       'returnright-purchases',
-      JSON.stringify(next),
+      JSON.stringify(normalized),
     )
   }
 
@@ -164,7 +177,7 @@ export function PurchaseProvider({
         const data = await response.json()
 
         if (Array.isArray(data.purchases)) {
-          persistLocal(data.purchases)
+          persistLocal(normalizePurchases(data.purchases))
 
           console.log(
             'Purchases loaded from AWS:',
@@ -343,8 +356,7 @@ export function PurchaseProvider({
   const atRisk = useMemo(
     () =>
       purchases.filter(
-        (purchase) =>
-          purchase.daysLeft <= 14,
+        (purchase) => purchase.status === 'soon',
       ),
     [purchases],
   )

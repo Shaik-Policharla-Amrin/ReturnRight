@@ -6,7 +6,7 @@ export interface Purchase {
   returnDeadline: string
   daysLeft: number
   warrantyMonths: number
-  status: 'soon' | 'safe'
+  status: 'soon' | 'safe' | 'expired'
   reason?: string
   needsPolicyReview?: boolean
   returnReason?: string

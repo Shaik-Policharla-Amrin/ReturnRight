@@ -13,6 +13,7 @@ import {
 import TopBar from '../components/TopBar'
 import { usePurchases } from '../context/PurchaseContext'
 import { freshScanResult } from '../data/seed'
+import { getReturnStatus, returnStatusLabel } from '../utils/deadline'
 
 const returnReasons = [
   'Wrong size or fit',
@@ -162,25 +163,20 @@ export default function PurchaseDetails() {
       deadline.getDate() + days,
     )
 
+    const returnDeadline = deadline.toLocaleDateString(
+      'en-IN',
+      { day: 'numeric', month: 'short', year: 'numeric' },
+    )
+    const returnStatus = getReturnStatus(returnDeadline)
+
     updatePurchase(
       purchase.id,
       {
-        daysLeft: days,
+        daysLeft: returnStatus?.daysLeft ?? days,
 
-        status:
-          days <= 14
-            ? 'soon'
-            : 'safe',
+        status: returnStatus?.status ?? 'safe',
 
-        returnDeadline:
-          deadline.toLocaleDateString(
-            'en-IN',
-            {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            },
-          ),
+        returnDeadline,
 
         needsPolicyReview: false,
 
@@ -368,7 +364,9 @@ export default function PurchaseDetails() {
             <div
               className={`confirmed-deadline ${purchase.status}`}
             >
-              {purchase.daysLeft} days left to return
+              {purchase.status === 'expired'
+                ? returnStatusLabel(purchase)
+                : `${returnStatusLabel(purchase)} to return`}
             </div>
           )}
 
