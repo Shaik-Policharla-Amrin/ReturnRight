@@ -12,7 +12,6 @@ Students and families often miss return windows, refund follow-ups, warranty per
 
 ## 🚀 Live Demo
 
-**Coming soon**
 
 ---
 
@@ -21,7 +20,7 @@ Students and families often miss return windows, refund follow-ups, warranty per
 * 🔐 Secure user authentication with Amazon Cognito
 * 📸 Upload invoice or receipt images
 * ☁️ Private invoice storage using Amazon S3
-* 🔎 OCR-based text extraction using Tesseract
+* 🔎 OCR-based text extraction using amazon textract and Tesseract
 * 🧠 Automatic extraction of purchase information
 * 📅 Return deadline tracking
 * 🛡️ Warranty tracking
