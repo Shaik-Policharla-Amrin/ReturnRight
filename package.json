@@ -1,0 +1,32 @@
+{
+  "name": "returnright",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity": "^3.1135.0",
+    "@aws-sdk/client-s3": "^3.1135.0",
+    "@aws-sdk/client-textract": "^3.1135.0",
+    "@aws-sdk/credential-providers": "^3.1135.0",
+    "aws-amplify": "^6.20.0",
+    "lucide-react": "^0.383.0",
+    "oidc-client-ts": "^3.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-oidc-context": "^3.3.1",
+    "react-router-dom": "^6.26.0",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.0"
+  }
+}
