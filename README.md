@@ -84,8 +84,7 @@ The user uploads an invoice, receipt, or order confirmation.
 The uploaded document is stored in a private **Amazon S3** bucket.
 
 ### 4. Extract text
-
-ReturnRight uses **Tesseract OCR** to extract readable text from the uploaded document.
+Amazon Textract is used as the primary OCR service for extracting text from uploaded invoices, with Tesseract.js as a local fallback.
 
 ### 5. Understand the purchase
 
