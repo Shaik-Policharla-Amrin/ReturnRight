@@ -1,41 +1,161 @@
 # ReturnRight
 
-A mobile-first web app that scans a receipt or invoice and turns it into a return/refund/warranty deadline you won't miss.
+### Never lose money because you missed a return, refund, warranty, or cancellation deadline.
 
-This is **Phase 1 — UI only**. No AWS is wired up yet; the scan flow uses demo data so it runs and demos reliably on its own.
+ReturnRight is a mobile-first web application that turns invoices and receipts into actionable purchase deadlines.
 
-## Run it
+Students and families often miss return windows, refund follow-ups, warranty periods, and cancellation dates because important information is buried inside invoices, emails, and order confirmations.
 
-```bash
-npm install
-npm run dev
+**ReturnRight extracts the important information, tracks deadlines, and helps users take action before they lose money.**
+
+---
+
+## 🚀 Live Demo
+
+**Coming soon**
+
+---
+
+## ✨ Features
+
+* 🔐 Secure user authentication with Amazon Cognito
+* 📸 Upload invoice or receipt images
+* ☁️ Private invoice storage using Amazon S3
+* 🔎 OCR-based text extraction using Tesseract
+* 🧠 Automatic extraction of purchase information
+* 📅 Return deadline tracking
+* 🛡️ Warranty tracking
+* 💰 Purchase amount and merchant tracking
+* ⚠️ Expiring-soon purchase alerts
+* 📝 Return/support message generation
+* 🗂️ Persistent purchase history using DynamoDB
+* 🔄 REST API using Amazon API Gateway
+* 🔔 Automated daily deadline checking using EventBridge Scheduler
+* 📱 Mobile-first responsive interface
+
+---
+
+## 🏗️ Architecture
+
+```text
+                    ┌──────────────────────┐
+                    │      ReturnRight     │
+                    │   React + TypeScript │
+                    └──────────┬───────────┘
+                               │
+                ┌──────────────┼──────────────┐
+                │              │              │
+                ▼              ▼              ▼
+          Amazon Cognito   Amazon S3     API Gateway
+          Authentication   Invoice       REST API
+                           Storage           │
+                                            ▼
+                                   ReturnRight Lambda
+                                            │
+                                            ▼
+                                     Amazon DynamoDB
+                                            │
+                                            │
+                         ┌──────────────────┘
+                         ▼
+                EventBridge Scheduler
+                         │
+                         ▼
+                ReturnRightReminders
+                         │
+                         ▼
+                 Deadline Checking
 ```
 
-Open the local URL it prints. On your phone (same Wi-Fi), use the "Network" URL Vite prints instead of localhost so you can test the camera capture.
+---
 
-## Structure
+## 🔄 How ReturnRight Works
 
+### 1. Sign in
+
+Users securely sign in through **Amazon Cognito**.
+
+### 2. Upload a purchase document
+
+The user uploads an invoice, receipt, or order confirmation.
+
+### 3. Store securely
+
+The uploaded document is stored in a private **Amazon S3** bucket.
+
+### 4. Extract text
+
+ReturnRight uses **Tesseract OCR** to extract readable text from the uploaded document.
+
+### 5. Understand the purchase
+
+The extracted information is converted into structured purchase data such as:
+
+```json
+{
+  "product": "On-Ear Headphones",
+  "amount": 1798,
+  "purchaseDate": "2026-09-12",
+  "returnDeadline": "2026-09-19",
+  "warrantyMonths": 0,
+  "merchant": "Appario Retail Private Ltd"
+}
 ```
-src/
-├── components/     TopBar, BottomNav — shared across pages
-├── context/        PurchaseContext — in-memory purchase state, shared by Dashboard/Scan/PurchaseDetails
-├── data/           Seed/demo purchases
-├── pages/
-│   ├── Login.tsx            Demo entry point (Cognito comes in Phase 2)
-│   ├── Dashboard.tsx        Money-at-risk hero, scan/upload entry, expiring-soon list
-│   ├── Scan.tsx             Camera capture (real device camera via capture="environment")
-│   └── PurchaseDetails.tsx  Shows a fresh scan result (with Save) or an existing purchase
-├── theme.ts        Design tokens (color, type)
-└── types.ts        Purchase type
-```
 
-## What's next (Phase 2)
+### 6. Save the purchase
 
-In `src/pages/Scan.tsx`, the `onFileChosen` handler has a `TODO` marking where the real pipeline replaces the demo timeout:
+Purchase information is persisted in **Amazon DynamoDB**.
 
-```
-captured photo → S3 → Lambda → Textract → Bedrock → structured purchase → DynamoDB
-```
+### 7. Track deadlines
 
-Once that's wired, `PurchaseDetails` should receive the real extracted purchase instead of the `freshScanResult` demo object from `src/data/seed.ts`.
-"# ReturnRight" 
+ReturnRight calculates how much time remains before an important deadline.
+
+### 8. Remind the user
+
+**Amazon EventBridge Scheduler** triggers the reminder Lambda every day to check purchases approaching their return deadlines.
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+
+* React
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* Lucide React
+
+### AWS
+
+* **Amazon Cognito** — authentication
+* **Amazon S3** — private invoice storage
+* **AWS Lambda** — serverless backend processing
+* **Amazon API Gateway** — REST API
+* **Amazon DynamoDB** — purchase database
+* **Amazon EventBridge Scheduler** — automated reminder checks
+* **AWS Amplify** — application hosting
+
+### OCR
+
+* Tesseract OCR
+
+---
+
+## 🔐 Security
+
+ReturnRight is designed with privacy and user-specific data access in mind.
+
+* User authentication is handled through Amazon Cognito.
+* Invoice files are stored in a private S3 bucket.
+* S3 access is restricted to authenticated users.
+* API requests use Cognito authentication.
+* Purchase records are stored in DynamoDB.
+* User purchase data is associated with the authenticated user.
+
+ReturnRight does not automatically send messages to sellers. Users review generated support messages before taking action.
+
+---
+
+## 📂 Project St
