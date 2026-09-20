@@ -13,7 +13,7 @@ import {
   TextractClient,
 } from '@aws-sdk/client-textract'
 
-import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers'
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-identity'
 
 const REGION = 'ap-south-1'
 
